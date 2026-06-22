@@ -1,6 +1,7 @@
 # dependencies / build output
 node_modules/
 dist/
+*.ehpk
 
 # local runtime config (contains your token, cwd, IPs, etc.)
 .env

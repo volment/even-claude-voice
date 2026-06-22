@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pack": "npm run build && evenhub pack app.json dist -o claude-voice.ehpk && echo \"\\n→ claude-voice.ehpk ready (upload at hub.evenrealities.com → Private builds)\""
   },
   "devDependencies": {
     "typescript": "~6.0.2",

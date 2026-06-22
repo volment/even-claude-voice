@@ -154,7 +154,7 @@ async function main(): Promise<void> {
     const n = targets.length;
     if (n === 0) return;
     const now = performance.now();
-    if (now - lastMoveAt < 280) return;
+    if (now - lastMoveAt < 400) return;
     lastMoveAt = now;
     cursor = (cursor + delta + n) % n;
     renderPicker();
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
       `${confirmYes ? '▶ ' : '  '}Yes — send\n` +
       `${confirmYes ? '  ' : '▶ '}No — cancel`;
     ui.setBody(body, false);
-    setPhase('idle', '↕ Yes/No · 2-press');
+    setPhase('idle', '↕ Yes/No · tap=決定');
   }
 
   function toggleConfirm(): void {
@@ -330,6 +330,19 @@ async function main(): Promise<void> {
     setPhase('busy', '… thinking');
   }
 
+  // Resolve the Yes/No confirmation (send if Yes, cancel if No) and return to
+  // the mirror. Triggered by a single tap.
+  function resolveConfirm(): void {
+    const sent = confirmYes && pendingText.length > 0;
+    if (sent) conn.send({ type: 'command', text: pendingText });
+    pendingText = '';
+    appMode = 'mirror';
+    followScreen = true;
+    // Restore the mirror immediately (no new screen arrives on cancel).
+    ui.setBody(lastScreen, true);
+    setPhase('idle', sent ? '… sent' : '✕ cancelled');
+  }
+
   // Double-press: context-dependent primary action.
   let lastActionAt = 0;
   function onPrimaryAction(): void {
@@ -345,14 +358,7 @@ async function main(): Promise<void> {
       return;
     }
     if (appMode === 'confirm') {
-      const sent = confirmYes && pendingText.length > 0;
-      if (sent) conn.send({ type: 'command', text: pendingText });
-      pendingText = '';
-      appMode = 'mirror';
-      followScreen = true;
-      // Restore the mirror immediately (no new screen arrives on cancel).
-      ui.setBody(lastScreen, true);
-      setPhase('idle', sent ? '… sent' : '✕ cancelled');
+      resolveConfirm();
       return;
     }
     if (appMode === 'mirror') {
@@ -410,12 +416,15 @@ async function main(): Promise<void> {
   // physical tap can emit the event twice.
   let lastTapAt = 0;
   function onTap(): void {
-    if (appMode !== 'mirror') return; // single tap is only used in the mirror
     const now = performance.now();
     if (now - lastTapAt < 400) return;
     lastTapAt = now;
-    if (recorder.isActive) void stopRecordingAndSend();
-    else void startRecording();
+    if (appMode === 'confirm') {
+      resolveConfirm(); // single tap decides Yes/No
+    } else if (appMode === 'mirror') {
+      if (recorder.isActive) void stopRecordingAndSend();
+      else void startRecording();
+    }
   }
 
   bridge.onEvenHubEvent((event: EvenHubEvent) => {

@@ -18,10 +18,12 @@ export interface AppConfig {
   demoText?: string;
 }
 
-// Edit these for your machine if you don't want to pass query params every time.
+// Defaults baked at build time from glasses/.env (VITE_*). Used by a packaged
+// (.ehpk) install where there are no URL query params. For dev, query params
+// (?bridge=...&token=...) still override these.
 const DEFAULTS: AppConfig = {
-  bridgeUrl: '',
-  token: '',
+  bridgeUrl: (import.meta.env.VITE_BRIDGE_URL as string | undefined) ?? '',
+  token: (import.meta.env.VITE_BRIDGE_TOKEN as string | undefined) ?? '',
   sampleRate: 16000,
 };
 

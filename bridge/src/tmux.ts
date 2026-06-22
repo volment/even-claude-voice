@@ -3,6 +3,7 @@
 // makes the glasses and the PC share ONE live Claude Code session (no fork).
 
 import { spawn } from 'node:child_process';
+import { log } from './log.ts';
 
 export interface TmuxTarget {
   paneId: string; // e.g. %9 — stable handle for capture/send
@@ -53,16 +54,17 @@ export async function listTargets(): Promise<TmuxTarget[]> {
       'list-panes',
       '-a',
       '-F',
-      '#{session_name}\t#{window_index}\t#{pane_id}\t#{pane_current_path}\t#{pane_current_command}',
+      '#{session_name}|||#{window_index}|||#{pane_id}|||#{pane_current_path}|||#{pane_current_command}',
     ]);
-  } catch {
+  } catch (err) {
+    log.warn('listTargets: tmux failed:', (err as Error).message);
     return [];
   }
 
   const targets: TmuxTarget[] = [];
   for (const line of out.split('\n')) {
     if (!line.trim()) continue;
-    const [session, windowIndex, paneId, path, command] = line.split('\t');
+    const [session, windowIndex, paneId, path, command] = line.split('|||');
     if (!paneId || !path) continue;
     if (SHELLS.has(command ?? '')) continue; // hide bare shells
     targets.push({
