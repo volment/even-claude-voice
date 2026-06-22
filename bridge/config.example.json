@@ -1,0 +1,22 @@
+{
+  "host": "0.0.0.0",
+  "port": 8765,
+  "token": "",
+  "cwd": ".",
+  "permissionMode": "acceptEdits",
+  "model": null,
+  "autoSendAfterTranscribe": false,
+  "mode": "tmux",
+  "tmux": {
+    "pollMs": 700,
+    "cols": 50,
+    "rows": 28,
+    "scrollback": 200
+  },
+  "whisper": {
+    "bin": "whisper",
+    "model": "turbo",
+    "language": "ja",
+    "initialPrompt": null
+  }
+}

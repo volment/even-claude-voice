@@ -1,0 +1,19 @@
+# dependencies / build output
+node_modules/
+dist/
+
+# local runtime config (contains your token, cwd, IPs, etc.)
+.env
+.env.local
+bridge/config.json
+glasses/app.json
+
+# logs
+*.log
+even-terminal-*.log
+
+# editor / OS
+.DS_Store
+
+# Claude Code local settings (personal permissions, paths)
+.claude/settings.local.json
