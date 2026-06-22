@@ -12,6 +12,7 @@ export type ClientMsg =
   | { type: 'loadSession'; id?: string }
   | { type: 'listTargets' }
   | { type: 'selectTarget'; id: string }
+  | { type: 'key'; key: string }
   | { type: 'ping' };
 
 export interface TargetSummary {

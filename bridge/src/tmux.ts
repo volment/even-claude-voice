@@ -78,15 +78,58 @@ export async function listTargets(): Promise<TmuxTarget[]> {
   return targets;
 }
 
+// Removes ANSI/OSC escape sequences.
+function stripAnsi(s: string): string {
+  return s
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '') // OSC
+    .replace(/\x1b\[[0-9;:?]*[ -/]*[@-~]/g, ''); // CSI (incl. SGR)
+}
+
+// Replaces glyphs that aren't in the G2's built-in font (which silently drops
+// them, making line-leading markers vanish and content look left-clipped) with
+// supported equivalents.
+function normalizeGlyphs(s: string): string {
+  return s
+    .replace(/[⏺◉◍]/g, '●') // tool-call bullets
+    .replace(/[❯⏵▸▹➤»]/g, '>') // pointers
+    .replace(/[⎿⌎└├┗┣]/g, '>') // tree connectors
+    .replace(/[✶✢✻✽✺✷✵✦✧✣✳✱❋]/g, '*') // spinner
+    .replace(/[⏤⎯]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'");
+}
+
+// True if the line carries a background-color / reverse SGR — how claude marks
+// the currently-selected menu item (e.g. ESC[48;5;237m).
+function hasBgHighlight(line: string): boolean {
+  return (
+    /\x1b\[48[;:]/.test(line) || // 256/truecolor background
+    /\x1b\[(?:4[0-7]|10[0-7])m/.test(line) || // basic background
+    /\x1b\[(?:[0-9;]*;)?7m/.test(line) // reverse video
+  );
+}
+
 // Captures the pane (optionally including scrollback history so the user can
 // scroll back through earlier conversation) and condenses it for the tiny
 // glasses display: drops trailing blanks, collapses blank runs, shortens rules.
 export async function capture(paneId: string, scrollback = 0): Promise<string> {
-  const args = ['capture-pane', '-p'];
+  // -e keeps ANSI so we can detect claude's highlighted (background-colored)
+  // selection and mark it, since the mono glasses lose color.
+  const args = ['capture-pane', '-p', '-e'];
   if (scrollback > 0) args.push('-S', `-${scrollback}`);
   args.push('-t', paneId);
   const out = await run(args);
-  let lines = out.split('\n').map((l) => l.replace(/\s+$/, ''));
+
+  let lines = out.split('\n').map((line) => {
+    const highlighted = hasBgHighlight(line);
+    let text = normalizeGlyphs(stripAnsi(line)).replace(/\s+$/, '');
+    // Mark the focused option so it's visible without color.
+    if (highlighted && text.trim()) {
+      text = `>> ${text.replace(/^\s*[>●*]?\s*/, '')}`;
+    }
+    return text;
+  });
 
   // Shorten long horizontal rules (claude's box borders/dividers).
   lines = lines.map((l) =>

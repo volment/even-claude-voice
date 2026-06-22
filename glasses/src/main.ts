@@ -101,6 +101,10 @@ async function main(): Promise<void> {
   let response = '';
   let transcript = '';
 
+  // Select mode: answer claude's in-TUI prompts by sending arrow/Enter keys.
+  // Entered with a left-temple tap in the mirror; voice is disabled while on.
+  let selectMode = false;
+
   const setPhase = (p: Phase, headerOverride?: string): void => {
     phase = p;
     ui.setHeader(headerOverride ?? defaultHeader(p));
@@ -110,7 +114,10 @@ async function main(): Promise<void> {
     s.length > n ? `${s.slice(0, n)}…` : s;
 
   function mirrorHeader(): string {
-    return recorder.isActive ? '● REC — tap to send' : '▶ tap=talk · 2-press=list';
+    if (selectMode) return '◉ 選択: スワイプ移動 · 左tap決定';
+    return recorder.isActive
+      ? '● REC — 右tapで送信'
+      : '▶ 右tap=talk · 左tap=選択 · 2-press=list';
   }
 
   function targetLabel(t: TargetSummary): string {
@@ -307,6 +314,7 @@ async function main(): Promise<void> {
     conn.send({ type: 'selectTarget', id: t.id });
     appMode = 'mirror';
     followScreen = true;
+    selectMode = false;
     setPhase('idle', `… opening ${t.label}`);
     ui.setBody(`Opening ${t.label}…`);
   }
@@ -317,6 +325,7 @@ async function main(): Promise<void> {
       void bridge.audioControl(false).catch(() => {});
     }
     appMode = 'picker';
+    selectMode = false;
     conn.send({ type: 'listTargets' });
     setPhase('idle', '… loading list');
   }
@@ -362,6 +371,10 @@ async function main(): Promise<void> {
       return;
     }
     if (appMode === 'mirror') {
+      if (selectMode) {
+        exitSelect(); // double-press leaves select mode without choosing
+        return;
+      }
       // Double-press in the mirror goes back to the session list.
       backToPicker();
       return;
@@ -392,6 +405,10 @@ async function main(): Promise<void> {
       toggleConfirm();
     } else if (appMode === 'mirror') {
       if (!scrollGuard()) return;
+      if (selectMode) {
+        sendKey('Up'); // navigate claude's prompt
+        return;
+      }
       followScreen = false; // stop auto-following so we can read past output
       ui.pageUp();
     } else {
@@ -404,6 +421,10 @@ async function main(): Promise<void> {
     else if (appMode === 'confirm') toggleConfirm();
     else if (appMode === 'mirror') {
       if (!scrollGuard()) return;
+      if (selectMode) {
+        sendKey('Down');
+        return;
+      }
       ui.pageDown();
       if (ui.atBottom()) followScreen = true; // resume following at the bottom
     } else {
@@ -411,20 +432,47 @@ async function main(): Promise<void> {
     }
   }
 
-  // Single tap = talk (start/stop recording) in the mirror. On this hardware a
-  // single tap arrives as a bare sysEvent (no eventType). Debounced because one
-  // physical tap can emit the event twice.
+  function sendKey(key: string): void {
+    conn.send({ type: 'key', key });
+  }
+  function enterSelect(): void {
+    selectMode = true;
+    ui.setHeader(mirrorHeader());
+  }
+  function exitSelect(): void {
+    selectMode = false;
+    ui.setHeader(mirrorHeader());
+  }
+
+  // Single tap. On this hardware a tap is a bare sysEvent carrying eventSource:
+  // 1 = right temple, 3 = left temple, 2 = ring. Debounced (taps can double-fire).
   let lastTapAt = 0;
-  function onTap(): void {
+  function onSingleTap(src: number | undefined): void {
     const now = performance.now();
     if (now - lastTapAt < 400) return;
     lastTapAt = now;
-    if (appMode === 'confirm') {
-      resolveConfirm(); // single tap decides Yes/No
-    } else if (appMode === 'mirror') {
+
+    const left = src === 3; // left temple (later: ring = 2 → treat as select too)
+
+    if (appMode === 'mirror') {
+      if (selectMode) {
+        if (left) {
+          sendKey('Enter'); // confirm the highlighted choice
+          exitSelect();
+        }
+        // right tap while selecting: ignore (voice is off)
+        return;
+      }
+      if (left) {
+        enterSelect(); // left tap opens select mode for claude's prompt
+        return;
+      }
+      // right tap = talk
       if (recorder.isActive) void stopRecordingAndSend();
       else void startRecording();
+      return;
     }
+    if (appMode === 'confirm') resolveConfirm(); // single tap decides Yes/No
   }
 
   bridge.onEvenHubEvent((event: EvenHubEvent) => {
@@ -438,16 +486,21 @@ async function main(): Promise<void> {
       event.sysEvent?.eventType ??
       event.listEvent?.eventType;
     const et = OsEventTypeList.fromJson(rawEt);
-    dbg(`evt raw=${JSON.stringify(rawEt)} -> ${String(et)} [${appMode}]`);
+    const src =
+      event.sysEvent?.eventSource ??
+      (event.textEvent as { eventSource?: unknown })?.eventSource ??
+      (event.listEvent as { eventSource?: unknown })?.eventSource;
+    const srcNum = typeof src === 'number' ? src : undefined;
+    dbg(`evt ${et === undefined ? 'tap?' : et} src=${String(src)} [${appMode}${selectMode ? '/sel' : ''}]`);
     // Bare sysEvent with no recognized type = a single tap on this hardware.
     if (et === undefined && event.sysEvent && !event.textEvent && !event.listEvent) {
-      onTap();
+      onSingleTap(srcNum);
       return;
     }
     switch (et) {
-      // This hardware emits a bare sysEvent for single tap, but reliable codes
-      // for double-press (3) and swipes (1/2). Use those.
       case OsEventTypeList.CLICK_EVENT:
+        onSingleTap(srcNum);
+        break;
       case OsEventTypeList.DOUBLE_CLICK_EVENT:
         onPrimaryAction();
         break;

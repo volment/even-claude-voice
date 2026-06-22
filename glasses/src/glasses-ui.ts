@@ -22,8 +22,8 @@ const LIST_NAME = 'list';
 // Lines that fit one glasses screen (below the 1-line header). Keep small enough
 // that content never overflows — otherwise the firmware adds its own scroll that
 // fights our paging. Tune on hardware.
-const VISIBLE_LINES = 9;
-const PAGE_STEP = 7; // lines moved per swipe (slight overlap with VISIBLE_LINES)
+const VISIBLE_LINES = 8;
+const PAGE_STEP = 6; // lines moved per swipe (slight overlap with VISIBLE_LINES)
 
 type Layout = 'none' | 'text' | 'list';
 
@@ -68,9 +68,9 @@ export class GlassesUI {
   async showList(items: string[]): Promise<void> {
     const itemName = items.map((s) => s.slice(0, 60));
     const list = new ListContainerProperty({
-      xPosition: 0,
+      xPosition: 40,
       yPosition: 0,
-      width: 576,
+      width: 496,
       height: 288,
       borderWidth: 0,
       borderColor: 5,
@@ -80,7 +80,7 @@ export class GlassesUI {
       isEventCapture: 1,
       itemContainer: new ListItemContainerProperty({
         itemCount: itemName.length,
-        itemWidth: 568,
+        itemWidth: 488,
         isItemSelectBorderEn: 1,
         itemName,
       }),
@@ -136,9 +136,9 @@ export class GlassesUI {
 
   private textContainer(content: string): TextContainerProperty {
     return new TextContainerProperty({
-      xPosition: 0,
+      xPosition: 40, // left margin so the first char clears the lens edge
       yPosition: 0,
-      width: 576,
+      width: 496,
       height: 288,
       borderWidth: 0,
       borderColor: 5,

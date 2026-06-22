@@ -52,6 +52,13 @@ export interface SelectTargetMsg {
   id: string; // tmux pane id, e.g. %9
 }
 
+// tmux mode: send a single named key to the mirrored pane (for navigating
+// claude's in-TUI prompts): 'Up' | 'Down' | 'Enter' | 'Escape'.
+export interface KeyMsg {
+  type: 'key';
+  key: string;
+}
+
 export interface PingMsg {
   type: 'ping';
 }
@@ -65,6 +72,7 @@ export type ClientMsg =
   | LoadSessionMsg
   | ListTargetsMsg
   | SelectTargetMsg
+  | KeyMsg
   | PingMsg;
 
 // ---- Server -> Client ----
