@@ -60,3 +60,4 @@ evenhub-simulator "http://localhost:5173/?bridge=ws://127.0.0.1:8765&token=YOURT
 
 576×288・モノクロ16階調・テキストコンテナ中心・カメラ/スピーカー無し。
 出力は色やコードブロックが落ちるため、Claude の応答はプレーンテキストで表示・ページング。
+# even-claude-voice
