@@ -105,6 +105,15 @@ async function main(): Promise<void> {
   // Entered with a left-temple tap in the mirror; voice is disabled while on.
   let selectMode = false;
 
+  // Standby: after inactivity the mirror blanks to stay out of view. Wakes on
+  // swipe / double-press / new screen content (NOT single tap).
+  const STANDBY_AFTER_MS = 30000;
+  let standby = false;
+  let lastActivityAt = performance.now();
+  const noteActivity = (): void => {
+    lastActivityAt = performance.now();
+  };
+
   const setPhase = (p: Phase, headerOverride?: string): void => {
     phase = p;
     ui.setHeader(headerOverride ?? defaultHeader(p));
@@ -118,6 +127,21 @@ async function main(): Promise<void> {
     return recorder.isActive
       ? '● REC — 右tapで送信'
       : '▶ 右tap=talk · 左tap=選択 · 2-press=list';
+  }
+
+  function enterStandby(): void {
+    if (standby || appMode !== 'mirror' || selectMode || recorder.isActive) return;
+    standby = true;
+    ui.setHeader('● 待機 — スワイプ/2-press で復帰');
+    ui.setBody('');
+  }
+
+  function exitStandby(): void {
+    if (!standby) return;
+    standby = false;
+    ui.setBody(lastScreen, true);
+    ui.setHeader(mirrorHeader());
+    noteActivity();
   }
 
   function targetLabel(t: TargetSummary): string {
@@ -208,6 +232,12 @@ async function main(): Promise<void> {
         lastScreen = msg.text;
         if (appMode === 'confirm') break; // don't clobber the Yes/No prompt
         appMode = 'mirror';
+        noteActivity();
+        // New content (the bridge only sends on change) wakes from standby.
+        if (standby) {
+          exitStandby();
+          break;
+        }
         // Follow the latest unless the user scrolled up to read past output.
         ui.setBody(msg.text, followScreen);
         if (phase === 'idle') ui.setHeader(mirrorHeader());
@@ -362,6 +392,11 @@ async function main(): Promise<void> {
     }
     lastActionAt = now;
 
+    if (standby) {
+      exitStandby();
+      return;
+    }
+
     if (appMode === 'picker') {
       selectCurrent();
       return;
@@ -379,6 +414,7 @@ async function main(): Promise<void> {
       backToPicker();
       return;
     }
+
     // headless / demo
     if (config.demoText) {
       sendDemoCommand();
@@ -399,6 +435,10 @@ async function main(): Promise<void> {
   }
 
   function onSwipeUp(): void {
+    if (standby) {
+      exitStandby();
+      return;
+    }
     if (appMode === 'picker') {
       moveCursor(-1);
     } else if (appMode === 'confirm') {
@@ -417,6 +457,10 @@ async function main(): Promise<void> {
   }
 
   function onSwipeDown(): void {
+    if (standby) {
+      exitStandby();
+      return;
+    }
     if (appMode === 'picker') moveCursor(1);
     else if (appMode === 'confirm') toggleConfirm();
     else if (appMode === 'mirror') {
@@ -448,9 +492,11 @@ async function main(): Promise<void> {
   // 1 = right temple, 3 = left temple, 2 = ring. Debounced (taps can double-fire).
   let lastTapAt = 0;
   function onSingleTap(src: number | undefined): void {
+    if (standby) return; // single tap does NOT wake (no-op in standby)
     const now = performance.now();
     if (now - lastTapAt < 400) return;
     lastTapAt = now;
+    noteActivity();
 
     const left = src === 3; // left temple (later: ring = 2 → treat as select too)
 
@@ -514,6 +560,19 @@ async function main(): Promise<void> {
         break; // undefined / system events ignored
     }
   });
+
+  // Auto-enter standby after inactivity (no input and no screen change).
+  setInterval(() => {
+    if (
+      appMode === 'mirror' &&
+      !standby &&
+      !selectMode &&
+      !recorder.isActive &&
+      performance.now() - lastActivityAt > STANDBY_AFTER_MS
+    ) {
+      enterStandby();
+    }
+  }, 3000);
 
   conn.connect();
 }

@@ -2,10 +2,12 @@
 // Entry point: load config, print connection info, start the WebSocket server.
 
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { networkInterfaces } from 'node:os';
 import { loadConfig } from './config.ts';
 import { startServer } from './server.ts';
+import { startStaticServer } from './static.ts';
+import { startInboxWatcher } from './watch.ts';
 import { log } from './log.ts';
 
 // Load a .env file if present (env vars are the primary config source).
@@ -48,6 +50,12 @@ function main(): void {
   }
 
   startServer(config);
+
+  if (config.zkRoot) {
+    const distDir = join(config.zkRoot, '.system', 'glasses', 'dist');
+    startStaticServer(distDir, 5174, config.host);
+    startInboxWatcher(config.zkRoot);
+  }
 
   log.info(`bridge listening on ${config.host}:${config.port}`);
   log.info(`project dir (cwd for claude): ${config.cwd}`);

@@ -3,6 +3,7 @@
   "port": 8765,
   "token": "",
   "cwd": ".",
+  "zkRoot": null,
   "permissionMode": "acceptEdits",
   "model": null,
   "autoSendAfterTranscribe": false,

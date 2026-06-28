@@ -19,11 +19,16 @@ import {
 const CONTAINER_ID = 1;
 const TEXT_NAME = 'main';
 const LIST_NAME = 'list';
-// Lines that fit one glasses screen (below the 1-line header). Keep small enough
-// that content never overflows — otherwise the firmware adds its own scroll that
-// fights our paging. Tune on hardware.
-const VISIBLE_LINES = 8;
-const PAGE_STEP = 6; // lines moved per swipe (slight overlap with VISIBLE_LINES)
+// Full-screen box matching the G2 canvas (576×288).
+const BOX_X = 0;
+const BOX_Y = 0;
+const BOX_W = 576;
+const BOX_H = 288;
+// Terminal columns that fit in BOX_W with the G2's LVGL font (~10.5px/char empirically).
+export const DISPLAY_COLS = Math.floor(BOX_W / 10.5);
+
+const VISIBLE_LINES = 9;
+const PAGE_STEP = 7;
 
 type Layout = 'none' | 'text' | 'list';
 
@@ -68,11 +73,11 @@ export class GlassesUI {
   async showList(items: string[]): Promise<void> {
     const itemName = items.map((s) => s.slice(0, 60));
     const list = new ListContainerProperty({
-      xPosition: 40,
-      yPosition: 0,
-      width: 496,
-      height: 288,
-      borderWidth: 0,
+      xPosition: BOX_X,
+      yPosition: BOX_Y,
+      width: BOX_W,
+      height: BOX_H,
+      borderWidth: 1,
       borderColor: 5,
       paddingLength: 4,
       containerID: CONTAINER_ID,
@@ -80,7 +85,7 @@ export class GlassesUI {
       isEventCapture: 1,
       itemContainer: new ListItemContainerProperty({
         itemCount: itemName.length,
-        itemWidth: 488,
+        itemWidth: BOX_W - 8,
         isItemSelectBorderEn: 1,
         itemName,
       }),
@@ -136,11 +141,11 @@ export class GlassesUI {
 
   private textContainer(content: string): TextContainerProperty {
     return new TextContainerProperty({
-      xPosition: 40, // left margin so the first char clears the lens edge
-      yPosition: 0,
-      width: 496,
-      height: 288,
-      borderWidth: 0,
+      xPosition: BOX_X,
+      yPosition: BOX_Y,
+      width: BOX_W,
+      height: BOX_H,
+      borderWidth: 1,
       borderColor: 5,
       paddingLength: 4,
       containerID: CONTAINER_ID,

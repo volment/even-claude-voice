@@ -32,7 +32,10 @@ install)
   </array>
   <key>WorkingDirectory</key><string>$BRIDGE_DIR</string>
   <key>EnvironmentVariables</key>
-  <dict><key>PATH</key><string>$PATH</string></dict>
+  <dict>
+    <key>PATH</key><string>$PATH</string>
+    <key>CLAUDE_CONFIG_DIR</key><string>$HOME/.config/claude-code</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$LOG</string>

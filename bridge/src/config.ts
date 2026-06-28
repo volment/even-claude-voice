@@ -29,6 +29,8 @@ export interface Config {
   model: string | null;
   autoSendAfterTranscribe: boolean;
   whisper: WhisperConfig;
+  // Root of the Zettelkasten vault for ZK capture mode. null = disabled.
+  zkRoot: string | null;
   // 'tmux' = live-mirror a real tmux pane (shared with PC, no fork).
   // 'headless' = spawn `claude -p --resume` per command (separate process).
   mode: 'tmux' | 'headless';
@@ -138,6 +140,7 @@ export function loadConfig(configPath?: string): Config {
     port: envNum('BRIDGE_PORT') ?? jsonNum(c.port) ?? 8765,
     token,
     cwd,
+    zkRoot: envStr('ZK_ROOT') ?? jsonStr(c.zkRoot) ?? null,
     permissionMode,
     model: envStr('BRIDGE_MODEL') ?? jsonStr(c.model) ?? null,
     autoSendAfterTranscribe:
@@ -155,8 +158,8 @@ export function loadConfig(configPath?: string): Config {
     mode,
     tmux: {
       pollMs: envNum('TMUX_POLL_MS') ?? jsonNum(t.pollMs) ?? 700,
-      cols: envNum('TMUX_COLS') ?? jsonNum(t.cols) ?? 50,
-      rows: envNum('TMUX_ROWS') ?? jsonNum(t.rows) ?? 28,
+      cols: envNum('TMUX_COLS') ?? jsonNum(t.cols) ?? 56, // 576px / ~10.5px per char (G2 LVGL font)
+      rows: envNum('TMUX_ROWS') ?? jsonNum(t.rows) ?? 14,
       scrollback: envNum('TMUX_SCROLLBACK') ?? jsonNum(t.scrollback) ?? 200,
     },
   };

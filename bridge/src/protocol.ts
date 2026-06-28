@@ -12,6 +12,8 @@ export type SessionSelector = 'continue' | 'new' | (string & {});
 export interface HelloMsg {
   type: 'hello';
   token?: string;
+  // ZK Capture sets this to 'zk'; Cloud Voice omits it (voice mode).
+  clientMode?: 'zk';
 }
 
 export interface TextCommandMsg {
@@ -26,6 +28,21 @@ export interface AudioMsg {
   data: string;
   sampleRate?: number; // defaults to 16000
   session?: SessionSelector;
+  // 'zk' = route through Zettelkasten pipeline instead of Claude Code.
+  mode?: 'claude' | 'zk';
+}
+
+// ZK: approve or skip a specific proposal block.
+export interface ZkDecisionMsg {
+  type: 'zk_decision';
+  file: string;
+  idx: number;
+  action: 'approve' | 'skip';
+}
+
+// ZK: apply all approved blocks and generate zk/ cards.
+export interface ZkApplyMsg {
+  type: 'zk_apply';
 }
 
 export interface CancelMsg {
@@ -70,6 +87,8 @@ export type ClientMsg =
   | CancelMsg
   | ListSessionsMsg
   | LoadSessionMsg
+  | ZkDecisionMsg
+  | ZkApplyMsg
   | ListTargetsMsg
   | SelectTargetMsg
   | KeyMsg
@@ -164,6 +183,26 @@ export interface SessionSummary {
   preview: string;
 }
 
+// ZK: list of pending proposal blocks (returned after STT + process-inbox.sh).
+export interface ZkProposal {
+  file: string;
+  idx: number;
+  kind: string;
+  title: string;
+  body: string;
+}
+
+export interface ZkProposalsMsg {
+  type: 'zk_proposals';
+  items: ZkProposal[];
+}
+
+// ZK: returned after apply-proposal.js finishes.
+export interface ZkApplyDoneMsg {
+  type: 'zk_apply_done';
+  count: number;
+}
+
 export type ServerMsg =
   | WelcomeMsg
   | StatusMsg
@@ -175,4 +214,6 @@ export type ServerMsg =
   | HistoryMsg
   | TargetsMsg
   | ScreenMsg
-  | PongMsg;
+  | PongMsg
+  | ZkProposalsMsg
+  | ZkApplyDoneMsg;
